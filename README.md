@@ -1,3 +1,86 @@
+# Notes
+
+## funfix core
+
+* file structure
+
+    ```raw
+    .
+    ├── disjunctions.ts       // Option, Either, Try 的核心实现
+    ├── errors.ts             // 自定义的 Error
+    ├── index.ts              // index file
+    ├── internals.ts          // functional programming 内部机制的问题.
+    ├── kinds.ts              // 定义了 HKT, Constructor
+    └── std.ts                // standard function definition, equals, hashCode...etc
+    ```
+
+* Higher Kind Type 的实现需要特别关注下, Typescript 是不支持 HKT 的, 所以作者用了 HK<H, A> 这个HK type去模拟了HKT,具体的实现是有论文描述的, 我就没有看了, 太懒了, 也不一定能够看懂. `packages/funfix-core/src/kinds.ts`
+
+```js
+// 拿Option<A>举例来说, 
+export interface Functor<F> {
+  map<A, B>(f: (a: A) => B, fa: HK<F, A>): HK<F, B>
+}
+
+// Option<A> 实现了 HK<"funfix/option", A>
+export class Option<A> implements std.IEquals<Option<A>>, HK<"funfix/option", A> {}
+
+// 
+export type OptionTypes =
+  Setoid<Option<any>> &
+  Monad<"funfix/option">
+
+export const OptionModule: OptionTypes = {
+    // 这里边Option<A>, 已经实现了 Monad<"funfix/option">, 所以这里边可以替代fa节点的 Type
+    map: <A, B>(f: (a: A) => B, fa: Option<A>) =>
+    fa.map(f),
+}
+```
+
+* `jsverify` 这个库也很不错, property test
+
+
+
+```js
+// ------------ Custom Error
+/**
+ * A dummy error that can be used for testing purposes.
+ */
+export class DummyError extends Error {
+  constructor(message?: string) {
+    super(message)
+    this.name = "DummyError"
+
+    // Workaround to make `instanceof` work in ES5
+    const self = this as any
+    self.constructor = DummyError
+    self.__proto__ = DummyError.prototype
+  }
+}
+```
+
+## typescript
+
+```
+// ! mark in typescript, used in disjunctions.ts
+// https://stackoverflow.com/questions/42273853/in-typescript-what-is-the-exclamation-mark-bang-operator-when-dereferenci
+// Implements HK<F, A>
+/** @hidden */ readonly _URI!: "funfix/option"
+/** @hidden */ readonly _A!: A
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
 # Funfix
 
 <img src="https://funfix.org/public/logo/funfix-512.png" width="200" align="right" style="float:right; display: block; width:200px;" />
