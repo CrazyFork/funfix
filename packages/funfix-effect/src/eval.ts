@@ -119,6 +119,7 @@ export class Eval<A> implements HK<"funfix/eval", A> {
    * ```
    */
   map<B>(f: (a: A) => B): Eval<B> {
+    //:bm this is fucking neat
     return new FlatMap(this, (a: A) => Eval.now(f(a)))
   }
 
@@ -670,7 +671,7 @@ function evalSequence<A>(list: Eval<A>[] | Iterable<Eval<A>>): Eval<A[]> {
  * @hidden
  */
 function evalSequenceLoop<A>(acc: A[], cursor: IteratorLike<Eval<A>>): Eval<A[]> {
-  while (true) {
+  while (true) {// so we skip none values here?
     const elem = cursor.next()
     const isDone = elem.done
 
@@ -679,6 +680,7 @@ function evalSequenceLoop<A>(acc: A[], cursor: IteratorLike<Eval<A>>): Eval<A[]>
       return io.flatMap(a => {
         acc.push(a)
         if (isDone) return Eval.pure(acc)
+        // :bm, i think here using cursor is genius here
         return evalSequenceLoop(acc, cursor)
       })
     } else {

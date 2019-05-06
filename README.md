@@ -16,7 +16,7 @@
 
 * Higher Kind Type 的实现需要特别关注下, Typescript 是不支持 HKT 的, 所以作者用了 HK<H, A> 这个HK type去模拟了HKT,具体的实现是有论文描述的, 我就没有看了, 太懒了, 也不一定能够看懂. `packages/funfix-core/src/kinds.ts`
 
-```js
+```ts
 // 拿Option<A>举例来说, 
 export interface Functor<F> {
   map<A, B>(f: (a: A) => B, fa: HK<F, A>): HK<F, B>
@@ -41,7 +41,7 @@ export const OptionModule: OptionTypes = {
 
 
 
-```js
+```ts
 // ------------ Custom Error
 /**
  * A dummy error that can be used for testing purposes.
@@ -58,6 +58,103 @@ export class DummyError extends Error {
   }
 }
 ```
+
+## funfix-effect
+
+* file structure
+
+  ```
+  src
+  ├── eval.ts           // Eval<A>, 代表一个layziness 的计算, 最终返回A
+  ├── index.ts
+  ├── internals.ts
+  └── io.ts
+  ```
+
+### Eval
+`Eval<A>`, 是base class, 主要的method是`get:()=> A`, 所有Eval的本质是对计算做描述, 然后所有的`flatMap`转换都是对其计算结果做转换, chain 的过程. subtype 有: 
+
+* `Now`, 代表一个 constant value, `get: ()=> return this.value`
+* `Once`, 表示内部会计算一次, 然后后面的结果全部会被缓存掉
+* `Always`, 代表每次computation都会执行, `get:()=> return this.computation()`
+* `Suspend`, 代表了一个`Eval<A>`的 `factory`
+* `FlatMap`, 代表flatMap, 用了一个subtype封装了 `(Eval<A> -> Eval<B>) -> Eval<A> -> Eval<B>`这个计算, 
+
+
+`FlatMap` 和 `Suspend` 是两个非常特别的 Class, 需要特别关注下.
+
+
+__Trampoline__ : 
+
+```ts
+// Eval 中核心计算的 Trampoline. 单独贴在这里是因为其重要性, 
+/** @hidden */
+type Current = Eval<any>
+/** @hidden */
+type Bind = ((a: any) => Eval<any>)
+/** @hidden */
+type CallStack = Array<Bind>
+
+/** @hidden */
+function _popNextBind(bFirst: Bind | null, bRest: CallStack | null): Bind | undefined | null {
+  if (bFirst) return bFirst
+  if (bRest && bRest.length > 0) return bRest.pop()
+  return null
+}
+
+/** @hidden */
+function evalRunLoop<A>(start: Eval<A>): A {
+  let current: Current = start
+  let bFirst: Bind | null = null
+  let bRest: CallStack | null = null
+
+  while (true) {
+    switch (current._tag) {
+      case "now": // eval start, then cache it.
+        const now = current as Now<A>
+        const bind = _popNextBind(bFirst, bRest)
+        if (!bind) return now.value
+        bFirst = null
+        current = bind(now.value)
+        break
+
+      case "always":
+      case "once":
+        current = new Now(current.get())
+        break
+
+      case "suspend":
+        current = (current as Suspend<A>).thunk()
+        break
+
+      case "flatMap":
+        if (bFirst) {
+          if (!bRest) bRest = []
+          bRest.push(bFirst)
+        }
+        const fm = current as FlatMap<any, any>
+        bFirst = fm.f
+        current = fm.source
+        break
+    }
+  }
+}
+```
+<img src="./notes/assets/eval-trampoline.jpg" with="640" />
+## funfix-exec
+* file structure
+
+  ```
+  src
+  ├── cancelable.ts
+  ├── future.ts
+  ├── index.ts
+  ├── internals.ts
+  ├── ref.ts
+  ├── scheduler.ts
+  └── time.ts
+  ```
+
 
 ## typescript
 
