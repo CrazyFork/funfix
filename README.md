@@ -66,8 +66,8 @@ export class DummyError extends Error {
   ```
   src
   ├── eval.ts           // Eval<A>, 代表一个layziness 的计算, 最终返回A
-  ├── index.ts
-  ├── internals.ts
+  ├── index.ts      
+  ├── internals.ts      // 声明了 IteratorLike 的 Type
   └── io.ts
   ```
 
@@ -146,14 +146,48 @@ function evalRunLoop<A>(start: Eval<A>): A {
 
   ```
   src
-  ├── cancelable.ts
+  ├── cancelable.ts       // 定义了各种Cancelable instance
   ├── future.ts
   ├── index.ts
-  ├── internals.ts
-  ├── ref.ts
+  ├── internals.ts        // arrayBSearchInsertPos(), log2(), ...etc
+  ├── ref.ts              // DynamicRef, 动态引用, 创建 
   ├── scheduler.ts
-  └── time.ts
+  └── time.ts             // TimeUnit, Duration 的定义
   ```
+
+
+* Cancelable
+  * `BoolCancelable`, 具有 `isCanceled` boolean标识
+  * `CollectionCancelable`, 可以同时 cancel 多个 cancelable
+  * `AssignCancelable`, `update` 函数
+  * `MultiAssignCancelable`, 
+  * `StackedCancelable`, 内部是一个数组的, 没怎么看懂
+  * `ChainedCancelable`, 我是没怎么看懂这个, 其实有点复杂, 但感觉`ChainedCancelable`下面只能跟一个有效的 `ICancelable`, 还是挺复杂的这个地方.
+  * 
+
+### time.ts
+这里边通过 class 的封装, 实现了函数的多态还是蛮精彩的, 里边的 Class 抽象和彼此的关系很巧妙. 总之是通过Class实现的各个Item的Design创建出的优雅的API.
+
+
+```ts
+// 在执行计算前, 先价差是否会 overflow
+/** @hidden */
+function x(d: number, m: number, over: number): number {
+  if (d > over) return MAX
+  if (d < -over) return MIN
+  // 执行真正的计算
+  return d * m
+}
+
+```
+
+* `Math.trunc`, js 中number都是float类型的, 所以判断是不是integer是看对应的float bits有没有被设置上, `trunc` 就是讲float中的binary bits移除掉.
+
+
+<img src="./notes/assets/time.jpg" with="640" />
+
+
+###
 
 
 ## typescript
@@ -165,12 +199,16 @@ function evalRunLoop<A>(start: Eval<A>): A {
 /** @hidden */ readonly _URI!: "funfix/option"
 /** @hidden */ readonly _A!: A
 
+// binary ops, bit & bit, 这种方式是因为js在进行binary operation的时候会先将bit先转换成32bit的integer number, then perform binary operation.
+return 1 << (bit > 30 ? 30 : (bit & bit))
 
 ```
 
 
 
+# todo
 
+* // 47 is prime number, why is so important about prime number, its relationship with hashCode
 
 
 

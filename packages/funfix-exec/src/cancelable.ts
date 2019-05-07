@@ -1060,12 +1060,14 @@ export class ChainedCancelable implements IAssignCancelable {
 
     while (ref && keepSearching) {
       if (ref._chained) {
+        // 在所有的 chained instance 列表里边搜索是否有何当前 chainable 重叠的 instance
         const ref2: ICancelable | undefined = ref._underlying
         // Interrupt infinite loop if we see the same reference
         if (ref2 === this) return this
         ref = ref2 as ChainedCancelable
         keepSearching = !!ref2
       } else {
+        // if current is null, then no chain op is allowed
         if (!ref._underlying) ref = undefined
         keepSearching = false
       }

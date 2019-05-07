@@ -225,6 +225,7 @@ export abstract class Scheduler {
    *         this repeated task at any time.
    */
   public scheduleWithFixedDelay(initialDelay: number | Duration, delay: number | Duration, runnable: () => void): ICancelable {
+    // :bm, cool~
     const loop = (self: Scheduler, ref: IAssignCancelable, delayNow: number | Duration) =>
       ref.update(self.scheduleOnce(delayNow, () => {
         runnable()
@@ -377,6 +378,7 @@ export class ExecutionModel implements IEquals<ExecutionModel> {
 
   /** Implements `IEquals.hashCode`. */
   hashCode(): number {
+    // 47 is prime number,
     return hashCodeOfString(this.type) * 47 + this.recommendedBatchSize
   }
 

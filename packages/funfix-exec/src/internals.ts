@@ -35,8 +35,9 @@ export function arrayBSearchInsertPos<A>(array: Array<A>, f: (a: A) => number):
       const index = (minIndex + maxIndex) / 2 | 0
       const current = f(array[index])
       const next = index + 1 <= maxIndex ? f(array[index + 1]) : undefined
-
+      // 没有next或者search小于next(即当前是最小的current == search)
       if (current <= search && (next === undefined || search < next)) {
+        // ? why return index + 1
         return index + 1
       } else if (current <= search) {
         minIndex = index + 1
