@@ -71,11 +71,14 @@ export abstract class Scheduler {
         const modulus = em.recommendedBatchSize - 1
 
         this.executeBatched = (r) => {
+          // :bm, 由于 modules 是2的倍数, 所以下面这句话相当于求%,
           const next = (this.batchIndex + 1) & modulus
           if (next) {
             this.batchIndex = next
+            // 仍到 trampoline 中, 防止stackoverflow
             return this.trampoline(r)
           } else {
+            // exceed modules limit, schedule into async loop
             return this.executeAsync(r)
           }
         }
@@ -695,6 +698,7 @@ export class TestScheduler extends Scheduler {
       } else if (toExecute.length > 0) {
         // Executing current batch, randomized
         while (toExecute.length > 0) {
+          // 随机执行 toExecute array 中的一个
           const index = Math.floor(Math.random() * toExecute.length)
           const elem = toExecute[index] as any
           try {
@@ -708,6 +712,7 @@ export class TestScheduler extends Scheduler {
           }
         }
       } else if (jumpMs > 0) {
+        // 为啥不一次性设置 jumpMs 到 clock 里边? 非要这么一步步的走?
         const nextTaskJump = peek && (peek[0] - state.clock) || jumpMs
         const add = Math.min(nextTaskJump, jumpMs)
         state.clock += add
@@ -741,6 +746,7 @@ export class TestScheduler extends Scheduler {
       ? state.tasks[state.tasks.length - 1]
       : undefined
 
+    // 未到执行时间
     if (!peek || peek[0] > state.clock) return false
     this._state().tasks.pop()
     this.batchIndex = 0
