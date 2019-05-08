@@ -76,6 +76,7 @@ export abstract class Scheduler {
           if (next) {
             this.batchIndex = next
             // 仍到 trampoline 中, 防止stackoverflow
+            // 感觉没用呀
             return this.trampoline(r)
           } else {
             // exceed modules limit, schedule into async loop
@@ -440,6 +441,7 @@ class Trampoline {
     this._reporter = reporter
   }
 
+  // todo: js 单线程, 感觉这个怎么做都没啥用呀, 反而浪费性能
   execute(r: () => void) {
     if (!this._isActive) {
       this.runLoop(r)

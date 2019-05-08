@@ -1,5 +1,9 @@
 # Notes
 
+这个库是我为了gain insight of functional programming来看的. 就库的代码质量来说绝对的上乘.
+代码的注释, 写法, class domain的关系的抽象. 还有typescript的使用, 都使我受益良多.
+
+
 ## funfix core
 
 * file structure
@@ -151,7 +155,7 @@ function evalRunLoop<A>(start: Eval<A>): A {
   ├── index.ts
   ├── internals.ts        // arrayBSearchInsertPos(), log2(), ...etc
   ├── ref.ts              // DynamicRef, 动态引用, 创建 
-  ├── scheduler.ts
+  ├── scheduler.ts        // GlobalScheduler, TestScheduler
   └── time.ts             // TimeUnit, Duration 的定义
   ```
 
@@ -187,7 +191,16 @@ function x(d: number, m: number, over: number): number {
 <img src="./notes/assets/time.jpg" with="640" />
 
 
-###
+### scheduler.ts
+核心定义了 `Scheduler, TestScheduler, Trampoline`, 由于js单线程的机制, 然我感觉 `Trampoline` 并没有办法实现真正的 batchExecute, 如果要实现这样的, 应该再外层explicitly 调用batchTask, then execute batch tasks.
+
+不过 `TestScheduler` 的实现却是非常有意思. 尤其是里边的`tick`, 本质上来说一次`tick`会增加内部的时钟, 然后会把对应的排序好的 `Array<[clock: number, task]>` 拿出来全部执行.
+
+实现还是蛮有意思的.
+
+
+
+
 
 
 ## typescript

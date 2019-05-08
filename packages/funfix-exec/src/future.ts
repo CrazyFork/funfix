@@ -1589,6 +1589,7 @@ function genericTransformWith<A, B>(
  *
  * @Hidden
  */
+//:todo
 function promiseThen<T, R>(
   f: ((t: T) => IPromiseLike<R> | R) | undefined | null,
   alt: (t: T) => Future<T>,
@@ -1689,10 +1690,13 @@ function futureSequence<A>(values: Future<A>[] | Iterable<Future<A>>, ec: Schedu
         })
       }
 
+      //: return cancelable
       return cRef
     } catch (e) {
       // If an error happens here, it means the conversion from iterable to
       // array failed, and the futures we've seen are already canceled
+
+      //: or dont
       cb(Failure(e))
     }
   }, ec)
