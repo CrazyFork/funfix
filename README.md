@@ -145,7 +145,9 @@ function evalRunLoop<A>(start: Eval<A>): A {
 }
 ```
 <img src="./notes/assets/eval-trampoline.jpg" with="640" />
+
 ## funfix-exec
+
 * file structure
 
   ```
@@ -155,19 +157,75 @@ function evalRunLoop<A>(start: Eval<A>): A {
   ├── index.ts
   ├── internals.ts        // arrayBSearchInsertPos(), log2(), ...etc
   ├── ref.ts              // DynamicRef, 动态引用, 创建 
-  ├── scheduler.ts        // GlobalScheduler, TestScheduler
+  ├── scheduler.ts        // GlobalScheduler, TestScheduler, Scheduler 是 Future 的核心
   └── time.ts             // TimeUnit, Duration 的定义
   ```
 
 
-* Cancelable
-  * `BoolCancelable`, 具有 `isCanceled` boolean标识
-  * `CollectionCancelable`, 可以同时 cancel 多个 cancelable
-  * `AssignCancelable`, `update` 函数
-  * `MultiAssignCancelable`, 
-  * `StackedCancelable`, 内部是一个数组的, 没怎么看懂
-  * `ChainedCancelable`, 我是没怎么看懂这个, 其实有点复杂, 但感觉`ChainedCancelable`下面只能跟一个有效的 `ICancelable`, 还是挺复杂的这个地方.
-  * 
+### Cancelable
+* `BoolCancelable`, 具有 `isCanceled` boolean标识
+* `CollectionCancelable`, 可以同时 cancel 多个 cancelable
+* `AssignCancelable`, `update` 函数
+* `MultiAssignCancelable`, this is a quite interesting type, it can have the cancelable ref multiple times, once it's canceled, any cancelable update will be automatically canceled right away.
+* `StackedCancelable`, 内部是一个数组的, 没怎么看懂
+* `ChainedCancelable`, 我是没怎么看懂这个, 其实有点复杂, 但感觉`ChainedCancelable`下面只能跟一个有效的 `ICancelable`, 还是挺复杂的这个地方.
+* 
+
+`ChainedCancelable`: 用法还未知, 需要再看看代码
+
+`ChainedCancelable` 还算是比较特别, 一个实例保存着底层的某个其他类型的 `IAssignCancelable` 实例, 虽然一个 `ChainedCancelable` 可以chain其他类型的`ChainedCancelable or IAssignCancelable`, 但底层只会有一个能够保存ref的`IAssignCancelable`. 默认的 `ChainedCancelable` 是不完全的, 只有 `_chained` 被设置才是完全的 `ChainedCancelable`
+
+核心代码在chainTo方法上
+
+<img src="./notes/assets/chainedcancelable.png" with="640" />
+
+```ts
+
+  chainTo(other: ChainedCancelable): this {
+    if (!other) throw new IllegalArgumentError(`cannot chain to null value`)
+    // Short-circuit in case we have the same reference
+    if (other === this) return this
+
+    if (!this._underlying) {
+      other.cancel()
+      return this
+    }
+
+    // Getting the last ChainedCancelable reference in the
+    // chain, since that's the reference that we care about!
+    let ref: ChainedCancelable | undefined = other
+    let keepSearching = true
+
+    while (ref && keepSearching) {
+      if (ref._chained) {
+        // 在所有的 chained instance 列表里边搜索是否有何当前 chainable 重叠的 instance
+        const ref2: ICancelable | undefined = ref._underlying
+        // Interrupt infinite loop if we see the same reference
+        if (ref2 === this) return this
+        ref = ref2 as ChainedCancelable
+        keepSearching = !!ref2
+      } else {
+        // if current is null, then no chain op is allowed
+        if (!ref._underlying) ref = undefined
+        keepSearching = false
+      }
+    }
+
+    // A null or undefined reference means that `other` is already
+    // cancelled, therefore we are cancelling `this` as well
+    if (!ref) {
+      this.cancel()
+    } else {
+      const prev = this._underlying
+      this._underlying = ref
+      this._chained = true
+
+      if (!(prev instanceof DummyCancelable))
+        ref.update(prev)
+    }
+    return this
+  }
+```
 
 ### time.ts
 这里边通过 class 的封装, 实现了函数的多态还是蛮精彩的, 里边的 Class 抽象和彼此的关系很巧妙. 总之是通过Class实现的各个Item的Design创建出的优雅的API.
@@ -191,7 +249,8 @@ function x(d: number, m: number, over: number): number {
 <img src="./notes/assets/time.jpg" with="640" />
 
 
-### scheduler.ts
+### ! scheduler.ts
+! 核心的class
 核心定义了 `Scheduler, TestScheduler, Trampoline`, 由于js单线程的机制, 然我感觉 `Trampoline` 并没有办法实现真正的 batchExecute, 如果要实现这样的, 应该再外层explicitly 调用batchTask, then execute batch tasks.
 
 不过 `TestScheduler` 的实现却是非常有意思. 尤其是里边的`tick`, 本质上来说一次`tick`会增加内部的时钟, 然后会把对应的排序好的 `Array<[clock: number, task]>` 拿出来全部执行.
@@ -199,6 +258,20 @@ function x(d: number, m: number, over: number): number {
 实现还是蛮有意思的.
 
 
+```ts
+  public scheduleWithFixedDelay(initialDelay: number | Duration, delay: number | Duration, runnable: () => void): ICancelable {
+    // :bm, cool~
+    // all i have to say is recursive call with closure is really powerful as it can be 
+    const loop = (self: Scheduler, ref: IAssignCancelable, delayNow: number | Duration) =>
+      ref.update(self.scheduleOnce(delayNow, () => {
+        runnable()
+        loop(self, ref, delay)
+      }))
+
+    const task = MultiAssignCancelable.empty()
+    return loop(this, task, initialDelay)
+  }
+```
 
 
 
@@ -222,8 +295,7 @@ return 1 << (bit > 30 ? 30 : (bit & bit))
 # todo
 
 * // 47 is prime number, why is so important about prime number, its relationship with hashCode
-
-
+* left on, AsyncFutureState
 
 
 

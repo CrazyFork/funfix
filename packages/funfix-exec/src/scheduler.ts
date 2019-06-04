@@ -230,6 +230,7 @@ export abstract class Scheduler {
    */
   public scheduleWithFixedDelay(initialDelay: number | Duration, delay: number | Duration, runnable: () => void): ICancelable {
     // :bm, cool~
+    // all i have to say is recursive call with closure is really powerful as it can be 
     const loop = (self: Scheduler, ref: IAssignCancelable, delayNow: number | Duration) =>
       ref.update(self.scheduleOnce(delayNow, () => {
         runnable()

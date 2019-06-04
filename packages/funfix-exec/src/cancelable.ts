@@ -1043,6 +1043,8 @@ export class ChainedCancelable implements IAssignCancelable {
    * //=> Cancelling (2)
    * ```
    */
+
+  // main method
   chainTo(other: ChainedCancelable): this {
     if (!other) throw new IllegalArgumentError(`cannot chain to null value`)
     // Short-circuit in case we have the same reference

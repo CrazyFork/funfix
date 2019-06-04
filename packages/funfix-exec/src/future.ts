@@ -661,6 +661,7 @@ export abstract class Future<A> implements HK<"funfix/future", A>, IPromiseLike<
    *        then {@link Scheduler.global} gets used, which also allows for
    *        local overrides, being a {@link DynamicRef}
    */
+  // todo:
   static create<A>(register: (cb: (a: Try<A>) => void) => (ICancelable | void), ec: Scheduler = Scheduler.global.get()): Future<A> {
     const ref = FutureMaker.empty<A>(ec)
     try {
@@ -1135,8 +1136,9 @@ class PureFuture<A> extends Future<A> {
  *
  * @Hidden
  */
+//:todo, what's the difference between null / complete
 class AsyncFutureState<A> {
-  id: null | "chained" | "complete"
+  id: null | "chained" | "complete" // so it has three types
   ref: null | ((a: Try<A>) => void)[] | AsyncFutureState<A> | Try<A>
 
   constructor() {
@@ -1144,6 +1146,7 @@ class AsyncFutureState<A> {
     this.ref = null
   }
 
+  // return this, remove any immediate chained AsyncFutureState
   compressedRoot(): AsyncFutureState<A> {
     let cursor: AsyncFutureState<A> = this
     while (cursor.id === "chained") {
@@ -1166,6 +1169,7 @@ class AsyncFutureState<A> {
   tryComplete(r: Try<A>, ec: Scheduler): boolean {
     switch (this.id) {
       case null:
+        // so future can have list of job, then feed the job with r
         const xs = (this.ref as (null | ((a: Try<A>) => void)[]))
         this.ref = r
         this.id = "complete"
@@ -1175,6 +1179,7 @@ class AsyncFutureState<A> {
         }
         return true
 
+      // already complete here, so it's a false
       case "complete":
         return false
 
@@ -1211,14 +1216,17 @@ class AsyncFutureState<A> {
     }
   }
 
+  // f: a result callback/collector
   onComplete(f: (a: Try<A>) => void, ec: Scheduler): void {
     switch (this.id) {
       case null:
+        // push task onto a list queue
         if (!this.ref) this.ref = [];
         (this.ref as ((a: Try<A>) => void)[]).push(f)
         break
       case "complete":
         // Forced async boundary
+        // :todo ? async ?
         ec.executeBatched(() => f(this.ref as Try<A>))
         break
       case "chained":
@@ -1589,7 +1597,6 @@ function genericTransformWith<A, B>(
  *
  * @Hidden
  */
-//:todo
 function promiseThen<T, R>(
   f: ((t: T) => IPromiseLike<R> | R) | undefined | null,
   alt: (t: T) => Future<T>,
@@ -1599,10 +1606,11 @@ function promiseThen<T, R>(
   return value => {
     if (typeof f !== "function") return alt(value)
 
+    // then, at this line, we know f is a thunk
     const fb = f(value)
     if (!fb) return Future.pure(value, ec)
 
-    if (typeof (fb as any).then === "function")
+    if (typeof (fb as any).then === "function") // thunk return a promise
       return Future.fromPromise(fb as IPromiseLike<R>, ec)
     else
       return Future.pure(fb as R, ec)
