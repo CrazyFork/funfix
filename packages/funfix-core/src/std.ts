@@ -144,7 +144,7 @@ export const universalSetoid: Setoid<any> = { equals }
  */
 export function hashCode(ref: any): number {
   if (typeof ref === "number") {
-    // :?
+    // :?, convert to 32 bits number
     return ref & ref
   }
   /* istanbul ignore else */

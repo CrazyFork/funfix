@@ -71,12 +71,11 @@ export abstract class Scheduler {
         const modulus = em.recommendedBatchSize - 1
 
         this.executeBatched = (r) => {
-          // :bm, 由于 modules 是2的倍数, 所以下面这句话相当于求%,
           const next = (this.batchIndex + 1) & modulus
           if (next) {
+            // increase current index
             this.batchIndex = next
-            // 仍到 trampoline 中, 防止stackoverflow
-            // 感觉没用呀
+            // 仍到 trampoline 中, 防止stackoverflow 感觉没用呀
             return this.trampoline(r)
           } else {
             // exceed modules limit, schedule into async loop
@@ -230,11 +229,11 @@ export abstract class Scheduler {
    */
   public scheduleWithFixedDelay(initialDelay: number | Duration, delay: number | Duration, runnable: () => void): ICancelable {
     // :bm, cool~
-    // all i have to say is recursive call with closure is really powerful as it can be 
+    // all i have to say is recursive call with closure is really powerful as it can be
     const loop = (self: Scheduler, ref: IAssignCancelable, delayNow: number | Duration) =>
       ref.update(self.scheduleOnce(delayNow, () => {
         runnable()
-        loop(self, ref, delay)
+        loop(self, ref, delay) // this would update internal ICancelable ref.
       }))
 
     const task = MultiAssignCancelable.empty()
@@ -443,6 +442,8 @@ class Trampoline {
   }
 
   // todo: js 单线程, 感觉这个怎么做都没啥用呀, 反而浪费性能
+  // 这个逻辑确实有点怪, 理论上来说一但执行了, task 是没有办法加进来的, 只能
+  // 等上一个执行完.
   execute(r: () => void) {
     if (!this._isActive) {
       this.runLoop(r)
@@ -456,7 +457,7 @@ class Trampoline {
     try {
       let cursor: (() => void) | undefined = r
       while (cursor) {
-        try { cursor() } catch (e) { this._reporter(e) }
+        try { cursor() } catch (e) { this._reporter(e) } // :bm, an error will not terminate current thread
         cursor = this._queue.pop()
       }
     } finally {
@@ -531,6 +532,9 @@ export class GlobalScheduler extends Scheduler {
     return Date.now()
   }
 
+  // :todo, why here it ignores the setImmediate setting, and force a setTimeout usage?
+  // doesn't make sense to me
+  // oh, I see, it needs the delay param
   scheduleOnce(delay: number | Duration, runnable: () => void): ICancelable {
     const r = () => {
       this.batchIndex = 0

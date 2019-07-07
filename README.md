@@ -3,6 +3,21 @@
 这个库是我为了gain insight of functional programming来看的. 就库的代码质量来说绝对的上乘.
 代码的注释, 写法, class domain的关系的抽象. 还有typescript的使用, 都使我受益良多.
 
+宝藏! 这代码库看的爽!
+
+
+```ts
+// ! mark in typescript, used in disjunctions.ts
+// https://stackoverflow.com/questions/42273853/in-typescript-what-is-the-exclamation-mark-bang-operator-when-dereferenci
+// Implements HK<F, A>
+/** @hidden */ readonly _URI!: "funfix/option"
+/** @hidden */ readonly _A!: A
+
+// binary ops, bit & bit, 这种方式是因为js在进行binary operation的时候会先将bit先转换成32bit的integer number, then perform binary operation.
+return 1 << (bit > 30 ? 30 : (bit & bit))
+
+```
+
 
 ## funfix core
 
@@ -157,9 +172,21 @@ function evalRunLoop<A>(start: Eval<A>): A {
   ├── index.ts
   ├── internals.ts        // arrayBSearchInsertPos(), log2(), ...etc
   ├── ref.ts              // DynamicRef, 动态引用, 创建 
-  ├── scheduler.ts        // GlobalScheduler, TestScheduler, Scheduler 是 Future 的核心
+  ├── scheduler.ts        // GlobalScheduler, 调度 task 如何被执行的, 默认的GlobalScheduler用的 `new ExecutionModel("batched", recommendedBatchSize)`来调度
   └── time.ts             // TimeUnit, Duration 的定义
   ```
+
+DynamicRef 这个类是真的牛pi, 通过这个类库, 你可以用 .bind 动态覆盖掉里边默认获取的引用定义. 
+哎 我之前写ssr的时候就想着啥方式能够在全局替换掉api的ref, 通过这个就可以了!, 还不用在代码上做任何侵入改动.
+
+```
+const ref = DynamicRef.of(3);
+
+ref.bind("x", ()=>{
+  ref.get() // x
+  return 4
+}) // return 4
+```
 
 
 ### Cancelable
@@ -257,6 +284,16 @@ function x(d: number, m: number, over: number): number {
 
 实现还是蛮有意思的.
 
+scheduler 的类型:
+* global scheduler: 
+  * ExecutionModel: 用于描述 scheduler 如何执行
+    * public type: "batched" | "synchronous" | "alwaysAsync"
+    * batched: 一次执行n个
+    * synchronous: 串行执行
+    * alwaysAsync: async 
+
+  * `executeBatched` 是子类必须实现的方法, 核心就是读懂这个就可以了, scheduleOnce 这些花哨的都是为了按一定rate 去执行task, 没啥太大用我理解. 有用也有bug. 
+
 
 ```ts
   public scheduleWithFixedDelay(initialDelay: number | Duration, delay: number | Duration, runnable: () => void): ICancelable {
@@ -273,22 +310,10 @@ function x(d: number, m: number, over: number): number {
   }
 ```
 
-
+<img src="./notes/assets/scheduler.png" with="640" />
 
 
 ## typescript
-
-```
-// ! mark in typescript, used in disjunctions.ts
-// https://stackoverflow.com/questions/42273853/in-typescript-what-is-the-exclamation-mark-bang-operator-when-dereferenci
-// Implements HK<F, A>
-/** @hidden */ readonly _URI!: "funfix/option"
-/** @hidden */ readonly _A!: A
-
-// binary ops, bit & bit, 这种方式是因为js在进行binary operation的时候会先将bit先转换成32bit的integer number, then perform binary operation.
-return 1 << (bit > 30 ? 30 : (bit & bit))
-
-```
 
 
 
